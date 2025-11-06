@@ -3,6 +3,17 @@ import React, { useRef, useEffect, useMemo, useState } from 'react';
 interface GameCanvasProps {
   width?: number;
   height?: number;
+  // Externe Steuerung
+  songId: string;
+  onScoreChange?: (score: number) => void;
+  canStart?: boolean; // darf das Spiel gestartet werden (z.B. nur wenn ein Spieler gewählt ist)
+  onFinished?: (finalScore: number) => void; // wird aufgerufen, wenn der Song abgeschlossen ist
+  startSignal?: number; // erhöht sich, wenn extern ein neuer Start (mit Countdown) gewünscht ist
+  activePlayerName?: string; // Name des aktiven Spielers für Vorbereitungseinblendung
+  sessionFinished?: boolean; // Gesamtsession beendet (alle Spieler gespielt)
+  onManualStart?: () => void; // Benutzer hat Start geklickt (Parent steuert Session/Startsignal)
+  winnerName?: string; // Gewinnername am Ende
+  onRestart?: () => void; // Neues Spiel starten
 }
 
 interface ChartNote {
@@ -16,7 +27,7 @@ interface RuntimeNote extends ChartNote {
 }
 
 // Neu: Song-Definitionen und Chart-Builder
-interface SongConfig {
+export interface SongConfig {
   id: string;
   title: string;
   bpm: number;
@@ -25,7 +36,7 @@ interface SongConfig {
   pattern: number[]; // Lanes 0..3
 }
 
-const SONGS: SongConfig[] = [
+export const SONGS: SongConfig[] = [
   { id: 'demo-120', title: 'Demo – 120 BPM', bpm: 120, noteCount: 32, leadIn: 2, pattern: [0, 1, 2, 3, 2, 1, 0, 3] },
   { id: 'demo-140', title: 'Demo – 140 BPM', bpm: 140, noteCount: 40, leadIn: 2, pattern: [0, 2, 1, 3, 3, 1, 2, 0] },
 ];
@@ -41,13 +52,17 @@ function buildChart(song: SongConfig): ChartNote[] {
   return notes;
 }
 
-const GameCanvas: React.FC<GameCanvasProps> = ({ width = 800, height = 600 }) => {
+const GameCanvas: React.FC<GameCanvasProps> = ({ width = 800, height = 600, songId, onScoreChange, canStart = true, onFinished, startSignal, activePlayerName, sessionFinished, onManualStart, winnerName, onRestart }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number | null>(null);
   const startTimeRef = useRef<number | null>(null); // performance.now() Start
   const timeRef = useRef<number>(0); // aktuelle Spielzeit in Sekunden
   const pausedTimeRef = useRef<number>(0); // gemerkte Zeit beim Pausieren
   const prevFrameTimeRef = useRef<number | null>(null); // Delta-Time für Effekte (Flash, Feedback) berechnen
+  const finishedRef = useRef<boolean>(false);
+  const countdownRef = useRef<number>(0); // Countdown in Sekunden (3..0)
+  const prepareRef = useRef<number>(0); // Vorbereitung vor Countdown (Spieler bereit machen)
+  const prevStartSignalRef = useRef<number | undefined>(undefined);
 
   // UI/Score/State
   const [score, setScore] = useState(0);
@@ -55,8 +70,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ width = 800, height = 600 }) =>
   const lastJudgementRef = useRef<string>('');
   const feedbackTimerRef = useRef<number>(0);
   const [isRunning, setIsRunning] = useState(false);
-  const [songId, setSongId] = useState<string>(SONGS[0].id);
-  const [players, setPlayers] = useState<string>('');
+
+  // Notify parent when score changes
+  useEffect(() => {
+    onScoreChange?.(score);
+  }, [score, onScoreChange]);
 
   // Konstanten
   const LANES = 4;
@@ -72,6 +90,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ width = 800, height = 600 }) =>
   const GOOD_WINDOW = 0.14;
   const LATE_WINDOW = 0.18; // danach Miss
   const HIT_FLASH_DURATION = 0.25; // Dauer des hellen Aufblitzens nach einem Treffer
+  const PREPARE_DURATION = 5.0; // Sekunden Vorbereitung vor Countdown
 
   // Aktive Lane-Highlights beim Tastendruck
   const laneActiveRef = useRef<boolean[]>(Array.from({ length: LANES }, () => false));
@@ -82,6 +101,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ width = 800, height = 600 }) =>
     return buildChart(song);
   }, [songId]);
 
+  const lastNoteTime = useMemo(() => {
+    return chart.length ? Math.max(...chart.map(n => n.time)) : 0;
+  }, [chart]);
+
   const notesRef = useRef<RuntimeNote[]>([]);
   // Initialisiere Runtime-Noten und resette Status bei Songwechsel
   useEffect(() => {
@@ -91,8 +114,40 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ width = 800, height = 600 }) =>
     timeRef.current = 0;
     pausedTimeRef.current = 0;
     startTimeRef.current = null;
+    finishedRef.current = false;
+    countdownRef.current = 0;
+    prepareRef.current = 0;
     setIsRunning(false);
   }, [chart]);
+
+  // Externer Start-Trigger mit Vorbereitung + Countdown
+  useEffect(() => {
+    if (startSignal === undefined || sessionFinished) return;
+    if (prevStartSignalRef.current === undefined) {
+      prevStartSignalRef.current = startSignal;
+      return;
+    }
+    if (startSignal !== prevStartSignalRef.current) {
+      prevStartSignalRef.current = startSignal;
+      if (canStart) beginPreparation();
+    }
+  }, [startSignal, canStart, sessionFinished]);
+
+  const beginPreparation = () => {
+    // Reset aller Laufzeitdaten
+    notesRef.current = chart.map((n) => ({ ...n }));
+    comboRef.current = 0;
+    setScore(0);
+    lastJudgementRef.current = '';
+    feedbackTimerRef.current = 0;
+    timeRef.current = 0;
+    pausedTimeRef.current = 0;
+    startTimeRef.current = null;
+    finishedRef.current = false;
+    setIsRunning(false);
+    countdownRef.current = 0; // Countdown startet erst nach Vorbereitung
+    prepareRef.current = PREPARE_DURATION; // Vorbereitung starten
+  };
 
   // Keyboard Handling
   useEffect(() => {
@@ -268,15 +323,33 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ width = 800, height = 600 }) =>
     ctx.fillStyle = '#f9fafb';
     ctx.font = 'bold 26px system-ui, -apple-system, Segoe UI, Roboto, Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('Piano Hero – 4 Tasten', width / 2, 36);
+    ctx.fillText('Piano Hero', width / 2, 36);
 
-    ctx.font = '18px system-ui, -apple-system, Segoe UI, Roboto, Arial';
-    ctx.fillText(`Score: ${score}   Combo: ${comboRef.current}`, width / 2, 64);
+    // Vorbereitung Overlay
+    if (prepareRef.current > 0 && !isRunning) {
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(0, 0, width, height);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 34px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+      ctx.fillText(`Spieler ${activePlayerName || ''} bereit machen...`, width / 2, height / 2 - 30);
+      ctx.font = '18px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+      ctx.fillText('Gleich startet der Countdown', width / 2, height / 2 + 10);
+    }
 
-    if (players.trim().length > 0) {
-      ctx.font = '16px system-ui, -apple-system, Segoe UI, Roboto, Arial';
-      ctx.fillStyle = '#d1d5db';
-      ctx.fillText(`Spieler: ${players}`, width / 2, 88);
+    // Countdown Overlay
+    if (countdownRef.current > 0) {
+      const n = Math.max(1, Math.ceil(countdownRef.current));
+      ctx.fillStyle = 'rgba(0,0,0,0.45)';
+      ctx.fillRect(0, 0, width, height);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 96px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+      ctx.fillText(String(n), width / 2, height / 2);
+    }
+
+    // Session beendet Overlay (nur Hintergrund, Text wird via HTML Overlay gerendert)
+    if (sessionFinished) {
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.fillRect(0, 0, width, height);
     }
 
     // Feedback
@@ -310,6 +383,25 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ width = 800, height = 600 }) =>
       prevFrameTimeRef.current = nowMs;
     }
 
+    // Vorbereitung herunter zählen -> danach Countdown starten
+    if (prepareRef.current > 0 && dt > 0) {
+      prepareRef.current = Math.max(0, prepareRef.current - dt);
+      if (prepareRef.current <= 0 && countdownRef.current === 0 && !sessionFinished) {
+        countdownRef.current = 3; // Countdown startet
+      }
+    }
+
+    // Countdown ablaufen lassen; Start, wenn erreicht
+    if (countdownRef.current > 0 && dt > 0) {
+      countdownRef.current = Math.max(0, countdownRef.current - dt);
+      if (countdownRef.current <= 0 && !isRunning) {
+        // Start direkt nach Countdown
+        startTimeRef.current = nowMs;
+        timeRef.current = 0;
+        setIsRunning(true);
+      }
+    }
+
     // Zeit aktualisieren nur wenn laufend
     if (isRunning) {
       if (startTimeRef.current === null) {
@@ -318,9 +410,18 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ width = 800, height = 600 }) =>
       const nowSec = (nowMs - startTimeRef.current) / 1000;
       timeRef.current = nowSec;
       updateMisses(nowSec);
+
+      // Song-Ende prüfen
+      const allJudged = notesRef.current.length > 0 && notesRef.current.every(n => !!n.judged);
+      if (!finishedRef.current && allJudged && nowSec >= lastNoteTime + LATE_WINDOW + 0.05) {
+        finishedRef.current = true;
+        setIsRunning(false);
+        pausedTimeRef.current = timeRef.current;
+        onFinished?.(score);
+      }
     }
 
-    // Feedback abklingen lassen (auch im Pause-Bild leicht runterzählen)
+    // Feedback abklingen lassen
     if (feedbackTimerRef.current > 0 && dt > 0) {
       feedbackTimerRef.current = Math.max(0, feedbackTimerRef.current - dt);
     }
@@ -355,14 +456,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ width = 800, height = 600 }) =>
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [width, height, isRunning]);
+  }, [width, height, isRunning, sessionFinished]);
 
-  // Start/Stop und Songwechsel
+  // Start/Stop Buttons (manueller Start ignoriert wenn Session beendet)
   const onStart = () => {
-    if (isRunning) return;
-    // Beim Start die Startzeit relativ zur pausierten Zeit setzen
-    startTimeRef.current = performance.now() - pausedTimeRef.current * 1000;
-    setIsRunning(true);
+    if (!canStart || sessionFinished) return;
+    // Parent soll Session starten und Startsignal geben
+    onManualStart?.();
   };
   const onStop = () => {
     if (!isRunning) return;
@@ -370,41 +470,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ width = 800, height = 600 }) =>
     pausedTimeRef.current = timeRef.current;
     setIsRunning(false);
   };
-  const onChangeSong = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSongId(e.target.value);
-  };
 
   return (
-    <div style={{ maxWidth: width + 40, margin: '0 auto' }}>
-      <div style={{
-        display: 'flex',
-        gap: 12,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 12,
-        flexWrap: 'wrap'
-      }}>
-        <label style={{ color: '#e5e7eb' }}>
-          Song:
-          <select value={songId} onChange={onChangeSong} style={{ marginLeft: 8, padding: '6px 8px', borderRadius: 6 }}>
-            {SONGS.map((s) => (
-              <option key={s.id} value={s.id}>{s.title}</option>
-            ))}
-          </select>
-        </label>
-        <label style={{ color: '#e5e7eb' }}>
-          Spieler:
-          <input
-            type="text"
-            value={players}
-            onChange={(e) => setPlayers(e.target.value)}
-            placeholder="Name oder Namen (z.B. Anna, Tom)"
-            style={{ marginLeft: 8, padding: '6px 8px', borderRadius: 6, border: '1px solid #374151', background: '#111827', color: '#e5e7eb' }}
-          />
-        </label>
-        <button onClick={onStart} disabled={isRunning} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#22c55e', color: '#fff', cursor: isRunning ? 'not-allowed' : 'pointer' }}>Start</button>
-        <button onClick={onStop} disabled={!isRunning} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#ef4444', color: '#fff', cursor: !isRunning ? 'not-allowed' : 'pointer' }}>Stop</button>
-      </div>
+    <div style={{ maxWidth: width + 40, margin: '0 auto', position: 'relative' }}>
       <canvas
         ref={canvasRef}
         width={width}
@@ -413,10 +481,82 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ width = 800, height = 600 }) =>
           display: 'block',
           margin: '0 auto',
           borderRadius: 12,
-          border: '2px solid #374151',
           background: '#111827',
         }}
       />
+      {sessionFinished && (
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: 20,
+          color: '#fff',
+          fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, Arial',
+          textAlign: 'center'
+        }}>
+          <h2 style={{ fontSize: 42, margin: 0 }}>Spiel beendet</h2>
+          <div style={{ fontSize: 20 }}>
+            {winnerName ? `Gewinner: ${winnerName}` : 'Gewinner ermittelt'}
+          </div>
+          <button
+            onClick={onRestart}
+            style={{
+              padding: '12px 28px',
+              fontSize: 18,
+              borderRadius: 10,
+              border: 'none',
+              background: 'linear-gradient(135deg,#2563eb,#3b82f6)',
+              color: '#fff',
+              cursor: 'pointer',
+              boxShadow: '0 6px 18px -4px rgba(0,0,0,0.5)'
+            }}
+          >
+            Neues Spiel starten
+          </button>
+        </div>
+      )}
+      <div
+        style={{
+          display: 'flex',
+          gap: 12,
+          justifyContent: 'center',
+          alignItems: 'center',
+          marginTop: 12,
+          flexWrap: 'wrap',
+        }}
+      >
+        <button
+          onClick={onStart}
+          disabled={!canStart || isRunning || sessionFinished}
+          style={{
+            padding: '8px 16px',
+            borderRadius: 8,
+            border: 'none',
+            background: '#22c55e',
+            color: '#fff',
+            cursor: (!canStart || isRunning || sessionFinished) ? 'not-allowed' : 'pointer',
+          }}
+        >
+          Start
+        </button>
+        <button
+          onClick={onStop}
+          disabled={!isRunning}
+          style={{
+            padding: '8px 16px',
+            borderRadius: 8,
+            border: 'none',
+            background: '#ef4444',
+            color: '#fff',
+            cursor: !isRunning ? 'not-allowed' : 'pointer',
+          }}
+        >
+          Stop
+        </button>
+      </div>
     </div>
   );
 };

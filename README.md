@@ -1,13 +1,16 @@
 # Piano Game - Canvas-basiertes React Spiel
 
-Ein interaktives Piano-Spiel, das mit React, TypeScript und HTML5 Canvas entwickelt wurde. Das Spiel zeigt 4 Spalten mit herabfallenden Noten, die der Spieler mit den Tasten 1-4 treffen muss.
+Ein interaktives Piano-Spiel, das mit React, TypeScript und HTML5 Canvas entwickelt wurde. Das Spiel zeigt 4 Spalten mit herabfallenden Noten, die der Spieler mit den Tasten A, S, D, F treffen muss.
 
 ## 🎮 Features
 
 - **4 Spalten Gameplay**: Vier verschiedene Spalten mit unterschiedlichen Farben
-- **Kontinuierliche Note-Generierung**: Noten fallen kontinuierlich von oben herab
-- **Keyboard-Steuerung**: Verwende die Tasten 1, 2, 3, 4 für die jeweiligen Spalten
-- **Score-System**: Sammle Punkte durch das Treffen der Noten zur richtigen Zeit
+- **Guitar Hero-Style**: Noten fallen herab und müssen zur richtigen Zeit getroffen werden
+- **Keyboard-Steuerung**: Verwende die Tasten A, S, D, F für die jeweiligen Spalten
+- **Bewertungssystem**: PERFECT, GOOD oder MISS je nach Timing-Genauigkeit
+- **Combo-System**: Aufeinanderfolgende Treffer erhöhen den Combo-Multiplikator
+- **Verschiedene Songs**: Auswählbare Demo-Songs mit unterschiedlichen BPM
+- **Visuelle Effekte**: Leuchtende Lane-Highlights und Flash-Effekte bei Treffern
 - **Responsive Design**: Modern gestaltetes UI mit Glasmorphismus-Effekten
 
 ## 🚀 Installation und Ausführung
@@ -34,15 +37,18 @@ npm run preview
 ## 🎯 Spielanleitung
 
 1. **Spiel starten**: Klicke auf "Start" um das Spiel zu beginnen
-2. **Noten treffen**: Drücke die Tasten 1-4 wenn die Noten die Ziellinie erreichen
-3. **Punkte sammeln**: Jede getroffene Note gibt 10 Punkte
-4. **Reset**: Verwende "Reset" um das Spiel zurückzusetzen
+2. **Song auswählen**: Wähle einen der verfügbaren Demo-Songs aus
+3. **Spieler eingeben**: Optional deinen Namen oder mehrere Namen eingeben
+4. **Noten treffen**: Drücke A, S, D, F wenn die Noten die Ziellinie erreichen
+5. **Bewertung erhalten**: PERFECT (±0.07s), GOOD (±0.14s) oder MISS
+6. **Combo aufbauen**: Aufeinanderfolgende Treffer erhöhen den Score-Multiplikator
 
 ### Steuerung
-- **Taste 1**: Spalte 1 (Rot)
-- **Taste 2**: Spalte 2 (Orange)
-- **Taste 3**: Spalte 3 (Grün)
-- **Taste 4**: Spalte 4 (Blau)
+- **Taste A**: Spalte 1 (Rot)
+- **Taste S**: Spalte 2 (Orange)  
+- **Taste D**: Spalte 3 (Grün)
+- **Taste F**: Spalte 4 (Blau)
+- **Tasten halten**: Lane leuchtet solange die Taste gedrückt wird
 
 ## 🛠️ Technische Details
 
