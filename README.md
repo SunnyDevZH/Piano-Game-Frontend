@@ -51,7 +51,7 @@ npm run preview
 
 **Code Installation**: 
 
-1. **Code**: Arduino Ordner -> main.py und 
+1. **Code**: Arduino Ordner -> main.py und keyboard_emulator.py
 2. **Main Board**: Lade den Code auf Root ebene auf dein Arduino Nano32
 
 ## 🎯 Spielanleitung
