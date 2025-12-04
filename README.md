@@ -1,6 +1,6 @@
-# Piano Game - Canvas-basiertes React Spiel
+# Melody-Rush
 
-Ein interaktives Piano-Spiel, das mit React, TypeScript und HTML5 Canvas entwickelt wurde. Das Spiel zeigt 4 Spalten mit herabfallenden Noten, die der Spieler mit den Tasten A, S, D, F treffen muss.
+Ein interaktives Spiel, das mit React, TypeScript und HTML5 Canvas entwickelt wurde. Das Spiel zeigt 4 Spalten mit herabfallenden Noten, die der Spieler mit den Tasten A, S, D, F treffen muss.
 
 ## 🎮 Features
 
@@ -33,6 +33,20 @@ npm run build
 # Preview der Produktion-Build
 npm run preview
 ```
+### Setup für Arduino Steuerung
+
+**Material**: 
+- Arduino Board Nano32
+- Modulino Pixels
+- Modulino Distance
+- USB-C Kabel
+- 4 Platten aus dem 3D Drucker
+- Qwiic/JST-SH-Kabel
+
+**Foto**: 
+
+1. **Code**: Arduino Ordner -> main.py und 
+2. **Main Board**: Lade den Code auf Root ebene auf dein Arduino Nano32
 
 ## 🎯 Spielanleitung
 
@@ -50,7 +64,6 @@ npm run preview
 - **Taste F**: Spalte 4 (Blau)
 
 - **Oder mit den Arduino Tasten**: Tasten für A / S / D / F
-- **Siehe Code**: Arduino Ordner -> main.py und 
 
 ## 🛠️ Technische Details
 
@@ -59,58 +72,6 @@ npm run preview
 - **Vite** als Build-Tool
 - **HTML5 Canvas** für das Game-Rendering
 - **CSS3** mit modernen Features (Gradients, Backdrop-Filter)
-
-### Projekt-Struktur
-```
-src/
-├── components/
-│   └── GameCanvas.tsx    # Haupt-Game-Komponente
-├── App.tsx              # Haupt-App-Komponente
-├── App.css             # Haupt-Styling
-└── main.tsx            # Entry Point
-```
-
-### Game-Mechaniken
-- **Note-Spawning**: Neue Noten werden alle 2 Sekunden generiert
-- **Kollisionserkennung**: Hit-Zone am unteren Bildschirmrand
-- **Animation-Loop**: 60 FPS mit requestAnimationFrame
-- **State-Management**: React Hooks für UI-State, useRef für Game-State
-
-## 🎨 Anpassungen
-
-Das Spiel kann einfach erweitert werden:
-
-- **Geschwindigkeit**: Ändere `NOTE_SPEED` für schnellere/langsamere Noten
-- **Spawn-Rate**: Modifiziere `SPAWN_INTERVAL` für häufigere/seltenere Noten
-- **Farben**: Passe `COLUMN_COLORS` für andere Farbschemata an
-- **Anzahl Spalten**: Ändere `COLUMNS` für mehr/weniger Spalten
-
-## 📝 Entwicklung
-
-### Debugging
-- Browser-Konsole zeigt Hit-Events
-- React DevTools für Component-State
-- Canvas-Rendering kann direkt im Browser inspiziert werden
-
-### Erweiterungsideen
-- [ ] Combo-System für aufeinanderfolgende Treffer
-- [ ] Verschiedene Schwierigkeitsstufen
-- [ ] Sound-Effekte und Musik
-- [ ] Partikel-Effekte für visuelle Verbesserungen
-- [ ] Highscore-System mit Local Storage
-- [ ] Mobile Touch-Steuerung
-
-## 🔧 Build & Deployment
-
-```bash
-# Production Build erstellen
-npm run build
-
-# Build lokal testen
-npm run preview
-```
-
-Die Build-Ausgabe befindet sich im `dist/` Ordner und kann auf jedem statischen Web-Server deployed werden.
 
 ## 📄 Lizenz
 
