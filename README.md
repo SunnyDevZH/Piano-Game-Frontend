@@ -14,9 +14,7 @@ Ein interaktives Spiel, das mit React, TypeScript und HTML5 Canvas entwickelt wu
 - **Responsive Design**: Modern gestaltetes UI mit Glasmorphismus-Effekten
 
 ## Video 🎥
-<a href="arduino/video.mp4">
-  <img src="arduino/video.mp4" width="300">
-</a>
+🎥 [Video ansehen](arduino/video.mp4)
 
 ## 🚀 Installation und Ausführung
 
