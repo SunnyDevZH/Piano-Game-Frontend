@@ -15,8 +15,9 @@ Ein interaktives Spiel, das mit React, TypeScript und HTML5 Canvas entwickelt wu
 
 ## Video 🎥
 <a href="arduino/video.mp4">
-  <img src="arduino/board_down.JPG" width="300">
+  <img src="arduino/video.mp4" width="300">
 </a>
+
 ## 🚀 Installation und Ausführung
 
 ### Voraussetzungen
